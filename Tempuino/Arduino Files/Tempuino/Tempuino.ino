@@ -1,6 +1,7 @@
 #include <SPI.h>
 #include <WiFi101.h>
 #include <DHT.h>;
+#include <PubSubClient.h>
 
 //Constants
 
@@ -15,12 +16,17 @@ char pass[] = "dV11qYKRPnQdea8h";
 int status = WL_IDLE_STATUS; 
 const char *mqtt_server = "bee.rmq.cloudamqp.com";
 const int mqtt_port = 1883;
-const char *mqtt_user = "sviekext";
-const char *mqtt_pass = "0H6dUnK2fXeSP79FMQW1k5drtJH7zEtJ";
+const char *mqtt_user = "sviekext:sviekext";
+const char *mqtt_pass = "uhR7oc-YUsNB7Gvr-B0SKGnTUMVybjIN";
 const char *mqtt_client_name = "Tempuino";
+char* topic = "temperature";
 int chk;
 float hum;  //Stores humidity value
 float temp; //Stores temperature value
+int tempDelay = 10000;
+
+WiFiClient espClient;
+PubSubClient client(espClient);
 
 void setup()
 {
@@ -28,13 +34,9 @@ void setup()
   while (!Serial) {
   }
   establishConnection();
+  startMQTTClient();
   dht.begin();
   
-}
-
-void loop()
-{
- printTemperature();
 }
 
 void establishConnection(){
@@ -54,7 +56,6 @@ void establishConnection(){
 }
 
 void printTemperature(){
-     delay(2000);
     //Read data and store it to variables hum and temp
     hum = dht.readHumidity();
     temp= dht.readTemperature();
@@ -64,6 +65,61 @@ void printTemperature(){
     Serial.print(" %, Temp: ");
     Serial.print(temp);
     Serial.println(" Celsius");
-    delay(10000); //Delay 2 sec.
+    //sendData(hum,temp);
+    delay(tempDelay); 
   }
-   
+
+void sendData(long humidity, long temperature){
+    String stringHumid = String(humidity);
+    String stringTemp = String(temperature);
+    String stringToSend = String(stringHumid + stringTemp);
+    if (client.publish(topic,stringToSend.c_str())) {
+      Serial.println("Publish ok");
+    }
+    else {
+      Serial.println("Publish failed");
+    }
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("Message arrived in topic: ");
+  Serial.println(topic);
+  Serial.print("Message:");
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+  Serial.println("-----------------------");
+}
+
+void startMQTTClient(){
+  client.setServer(mqtt_server,mqtt_port);
+  client.setCallback(callback);
+    while (!client.connected()) {
+    Serial.println("Connecting to MQTT...");
+    if (client.connect(mqtt_client_name, mqtt_user, mqtt_pass )) {
+      Serial.println("connected");
+      Serial.println("Topic is:");
+      Serial.println(topic);  
+    } else {
+      Serial.print("failed with state ");
+      Serial.print(client.state());
+      delay(1000);
+    }
+    }
+    client.subscribe(topic);
+   if (client.publish(topic, "hello")) {
+      Serial.println("Publish ok");
+    }
+    else {
+      Serial.println("Publish failed");
+    }
+    
+  }
+    
+
+void loop()
+{
+  client.loop();
+ printTemperature();
+}
