@@ -20,6 +20,7 @@ const char *mqtt_user = "sviekext:sviekext";
 const char *mqtt_pass = "uhR7oc-YUsNB7Gvr-B0SKGnTUMVybjIN";
 const char *mqtt_client_name = "Tempuino";
 char* topic = "temperature";
+char* topicOut = "messages";
 int chk;
 float hum;  //Stores humidity value
 float temp; //Stores temperature value
@@ -107,7 +108,7 @@ void startMQTTClient(){
       delay(1000);
     }
     }
-    client.subscribe(topic);
+    client.subscribe(topicOut);
    if (client.publish(topic, "hello")) {
       Serial.println("Publish ok");
     }
