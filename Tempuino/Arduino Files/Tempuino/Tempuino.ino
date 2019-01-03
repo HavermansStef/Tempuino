@@ -11,15 +11,16 @@ DHT dht(DHTPIN, DHTTYPE); //// Initialize DHT sensor for normal 16mhz Arduino
 
 
 //Variables
-char ssid[] = "Unifi-AP-92";    
-char pass[] = "dV11qYKRPnQdea8h"; 
+char ssid[] = "Frilinglei";
+char pass[] = "BwrthG8wPH";
+//char ssid[] = "Unifi-AP-92";    
+//char pass[] = "dV11qYKRPnQdea8h"; 
 int status = WL_IDLE_STATUS; 
-const char *mqtt_server = "bee.rmq.cloudamqp.com";
-const int mqtt_port = 1883;
-const char *mqtt_user = "sviekext:sviekext";
-const char *mqtt_pass = "uhR7oc-YUsNB7Gvr-B0SKGnTUMVybjIN";
+const char *mqtt_server = "m15.cloudmqtt.com";
+const int mqtt_port = 16661;
+const char *mqtt_user = "eblgndhd";
+const char *mqtt_pass = "n_jbOQxQAaTt";
 const char *mqtt_client_name = "Tempuino";
-char* topic = "temperature";
 char* topicOut = "messages";
 int chk;
 float hum;  //Stores humidity value
@@ -66,20 +67,21 @@ void printTemperature(){
     Serial.print(" %, Temp: ");
     Serial.print(temp);
     Serial.println(" Celsius");
-    //sendData(hum,temp);
+    sendData(hum,temp);
     delay(tempDelay); 
   }
 
 void sendData(long humidity, long temperature){
-    String stringHumid = String(humidity);
-    String stringTemp = String(temperature);
-    String stringToSend = String(stringHumid + stringTemp);
-    if (client.publish(topic,stringToSend.c_str())) {
-      Serial.println("Publish ok");
-    }
-    else {
-      Serial.println("Publish failed");
-    }
+  int numt = temperature;
+  int numh = humidity;
+  char cstr[16];
+  char cshr[16];
+  itoa(numt,cstr,10);
+  itoa(numh,cshr,10);
+   client.publish("dht",cstr);
+   client.publish("bmp",cshr);
+
+    
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -100,22 +102,13 @@ void startMQTTClient(){
     Serial.println("Connecting to MQTT...");
     if (client.connect(mqtt_client_name, mqtt_user, mqtt_pass )) {
       Serial.println("connected");
-      Serial.println("Topic is:");
-      Serial.println(topic);  
     } else {
       Serial.print("failed with state ");
       Serial.print(client.state());
       delay(1000);
     }
     }
-    client.subscribe(topicOut);
-   if (client.publish(topic, "hello")) {
-      Serial.println("Publish ok");
-    }
-    else {
-      Serial.println("Publish failed");
-    }
-    
+    client.subscribe(topicOut);    
   }
     
 
