@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Tempuino</string>
+    <string name="title_home">Home</string>
+    <string name="title_dashboard">Dashboard</string>
+    <string name="title_notifications">Notifications</string>
+    <string name="stats">Stats</string>
+    <string name="settings">Settings</string>
+</resources>
