@@ -1,6 +1,11 @@
 package be.kdg.tempuino.tempuino;
 
+import android.arch.persistence.room.Room;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.HandlerThread;
 import android.support.annotation.NonNull;
 import android.support.design.widget.BottomNavigationView;
 import android.support.v7.app.AppCompatActivity;
@@ -8,7 +13,10 @@ import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
+
+import com.squareup.picasso.Picasso;
 
 import org.eclipse.paho.android.service.MqttAndroidClient;
 import org.eclipse.paho.client.mqttv3.IMqttActionListener;
@@ -20,9 +28,14 @@ import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URL;
 import java.text.DateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 import butterknife.ButterKnife;
 import github.vatsal.easyweather.Helper.TempUnitConverter;
@@ -41,6 +54,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvHumInsideValue;
     private TextView tvModified;
     private Button btnUpdate;
+    private ImageView ivCity;
 
     private final String serverURL = "tcp://m15.cloudmqtt.com:16661";
     private final String userNameMQTT = "eblgndhd";
@@ -49,10 +63,11 @@ public class MainActivity extends AppCompatActivity {
     private final String topicHum = "bmp";
 
     public final String APP_ID = "063057c739334060ed68e5e14f6a97d8";
-    String city = "Antwerpen";
+    String city = "Barcelona";
+
+    private AppDatabase appDatabase;
 
     private MqttAndroidClient client;
-
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
             = new BottomNavigationView.OnNavigationItemSelectedListener() {
 
@@ -67,6 +82,8 @@ public class MainActivity extends AppCompatActivity {
                     return true;
                 case R.id.navigation_notifications:
                     mTextMessage.setText(getString(R.string.settings));
+                    // Intent i = new Intent(this, AppCompatPreferenceActivity.class);
+                    // startActivity(i);
                     return true;
             }
             return false;
@@ -85,10 +102,56 @@ public class MainActivity extends AppCompatActivity {
         tvHumidValue = findViewById(R.id.tvHumValue);
         tvCity = findViewById(R.id.tvCity);
         btnUpdate = findViewById(R.id.btRefresh);
+        tvTempInsideValue = findViewById(R.id.tvTempInsideValue);
+        tvHumInsideValue = findViewById(R.id.tvHumInsideValue);
+        ivCity = findViewById(R.id.ivCity);
         ButterKnife.bind(this);
+        setBannerImage();
+        declareDatabase();
+        setDatabaseValues();
         loadWeather(city);
         connectMQTT();
         createEventListeners();
+    }
+
+    private void setDatabaseValues() {
+        final List<Measurement> humvalue = new ArrayList<>();
+        final List<Measurement> tempvalue = new ArrayList<>();
+        final CountDownLatch latch = new CountDownLatch(1);
+        Thread uiThread = new HandlerThread("UIHandler") {
+            @Override
+            public void run() {
+                if (appDatabase.daoAccess().getAmountValuesPresentHum() > 0) {
+                    humvalue.add(appDatabase.daoAccess().getlastHum());
+                }
+                if (appDatabase.daoAccess().getAmountValuesPresentTemp() > 0) {
+                    tempvalue.add(appDatabase.daoAccess().getLastTemp());
+                }
+                latch.countDown(); // Release await() in the test thread.
+            }
+        };
+        uiThread.start();
+        try {
+            latch.await();
+            if (humvalue.size() > 0) {
+                tvHumInsideValue.setText(humvalue.get(0).getValue());
+            } else {
+                tvHumInsideValue.setText(getString(R.string.unknown));
+            }
+            if (tempvalue.size() > 0) {
+                tvTempInsideValue.setText(tempvalue.get(0).getValue());
+            } else {
+                tvTempInsideValue.setText(getString(R.string.unknown));
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    private void declareDatabase() {
+        appDatabase = Room.databaseBuilder(getApplicationContext(),
+                AppDatabase.class, "measurement_db").build();
     }
 
     private void createEventListeners() {
@@ -96,7 +159,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 loadWeather(city);
-                publish("refresh");
+                publish("refresh", "refresh");
                 updateTimeStamp();
             }
         });
@@ -107,7 +170,6 @@ public class MainActivity extends AppCompatActivity {
         weatherMap.getCityWeather(city, new WeatherCallback() {
             @Override
             public void success(WeatherResponseModel response) {
-                tvHumidValue.setText("Bloep");
                 populateWeather(response);
             }
 
@@ -121,11 +183,23 @@ public class MainActivity extends AppCompatActivity {
     private void populateWeather(WeatherResponseModel response) {
         Weather weather[] = response.getWeather();
         tvHumidValue.setText(response.getMain().getHumidity() + "%");
-        tvHumidValue.setText("Hello");
         tvTemperatureValue.setText(TempUnitConverter.convertToCelsius(response.getMain().getTemp()).intValue() + " °C");
         tvCity.setText(response.getName());
     }
 
+
+    private void updateTemp(int temp) {
+        tvTempInsideValue.setText(String.valueOf(temp) + " °C");
+    }
+
+    private void updateHum(int hum) {
+        tvHumInsideValue.setText(String.valueOf(hum) + "%");
+    }
+
+    private void setBannerImage(){
+        String imageUri = "https://source.unsplash.com/1600x900/?building,"+city;
+        Picasso.with(getApplicationContext()).load(imageUri).into(ivCity);
+    }
 
     private void connectMQTT() {
         String clientId = MqttClient.generateClientId();
@@ -137,7 +211,6 @@ public class MainActivity extends AppCompatActivity {
         options.setCleanSession(false);
         options.setUserName(userNameMQTT);
         options.setPassword(passwordMQTT.toCharArray());
-
         try {
             IMqttToken token = client.connect(options);
             token.setActionCallback(new IMqttActionListener() {
@@ -149,24 +222,28 @@ public class MainActivity extends AppCompatActivity {
                     subscribe(topicHum);
                     subscribe(topicTemp);
                     client.setCallback(new MqttCallback() {
-                        TextView tt = findViewById(R.id.tvTempInsideValue);
-                        TextView th = findViewById(R.id.tvHumInsideValue);
-
                         @Override
                         public void connectionLost(Throwable cause) {
 
                         }
 
                         @Override
-                        public void messageArrived(String topic, MqttMessage message) throws Exception {
+                        public void messageArrived(String topic, MqttMessage message) {
                             Log.d("file", message.toString());
-
+                            int dht;
+                            int bmp;
                             switch (topic) {
                                 case "dht":
-                                    tt.setText(message.toString());
+                                    dht = Integer.parseInt(message.toString());
+                                    updateTemp(dht);
+                                    insertValueinDB(new Measurement(dht, Measurement.MeasurementType.TEMPERATURE));
+
                                     break;
                                 case "bmp":
-                                    th.setText(message.toString());
+                                    bmp = Integer.parseInt(message.toString());
+                                    updateHum(bmp);
+                                    insertValueinDB(new Measurement(bmp, Measurement.MeasurementType.HUMIDITY));
+
                                     break;
                             }
                             updateTimeStamp();
@@ -189,6 +266,17 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
+    private void insertValueinDB(final Measurement measurement) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                appDatabase.daoAccess().insertSingleMeasurement(measurement);
+            }
+        }).start();
+        Log.d("INSERT", "A NEW VALUE HAS BEEN INSERTED IN THE DATABASE");
+    }
+
     private void subscribe(String topic) {
         int qos = 1;
         try {
@@ -209,8 +297,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void publish(String payload) {
-        String topic = "settings";
+    private void publish(String topic, String payload) {
         byte[] encoded = new byte[0];
         try {
             encoded = payload.getBytes("UTF-8");
@@ -224,6 +311,14 @@ public class MainActivity extends AppCompatActivity {
     private void updateTimeStamp() {
         String currentDateTimeString = DateFormat.getDateTimeInstance().format(new Date());
         tvModified.setText(currentDateTimeString);
+    }
+
+    public void setTvTempInsideValue(TextView tvTempInsideValue) {
+        this.tvTempInsideValue = tvTempInsideValue;
+    }
+
+    public void setTvHumInsideValue(TextView tvHumInsideValue) {
+        this.tvHumInsideValue = tvHumInsideValue;
     }
 
 }
