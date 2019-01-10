@@ -1,11 +1,11 @@
 package be.kdg.tempuino.tempuino;
 
 import android.arch.persistence.room.Room;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.os.AsyncTask;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.HandlerThread;
+import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.design.widget.BottomNavigationView;
 import android.support.v7.app.AppCompatActivity;
@@ -28,9 +28,7 @@ import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.URL;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -63,11 +61,15 @@ public class MainActivity extends AppCompatActivity {
     private final String topicHum = "bmp";
 
     public final String APP_ID = "063057c739334060ed68e5e14f6a97d8";
-    String city = "Barcelona";
+
+    String city = "Antwerp";
+    int delay = 2;
+
 
     private AppDatabase appDatabase;
 
     private MqttAndroidClient client;
+
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
             = new BottomNavigationView.OnNavigationItemSelectedListener() {
 
@@ -75,15 +77,14 @@ public class MainActivity extends AppCompatActivity {
         public boolean onNavigationItemSelected(@NonNull MenuItem item) {
             switch (item.getItemId()) {
                 case R.id.navigation_home:
-                    mTextMessage.setText(R.string.title_home);
                     return true;
                 case R.id.navigation_dashboard:
-                    mTextMessage.setText(getString(R.string.stats));
+                    Intent i = new Intent(getApplicationContext(), StatsActivity.class);
+                    startActivity(i);
                     return true;
                 case R.id.navigation_notifications:
-                    mTextMessage.setText(getString(R.string.settings));
-                    // Intent i = new Intent(this, AppCompatPreferenceActivity.class);
-                    // startActivity(i);
+                    Intent b = new Intent(getApplicationContext(), SettingsActivity.class);
+                    startActivity(b);
                     return true;
             }
             return false;
@@ -112,6 +113,12 @@ public class MainActivity extends AppCompatActivity {
         loadWeather(city);
         connectMQTT();
         createEventListeners();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        connectMQTT();
     }
 
     private void setDatabaseValues() {
@@ -196,9 +203,21 @@ public class MainActivity extends AppCompatActivity {
         tvHumInsideValue.setText(String.valueOf(hum) + "%");
     }
 
-    private void setBannerImage(){
-        String imageUri = "https://source.unsplash.com/1600x900/?building,"+city;
+    private void setBannerImage() {
+        String imageUri = "https://source.unsplash.com/1600x900/?building," + city;
         Picasso.with(getApplicationContext()).load(imageUri).into(ivCity);
+    }
+
+
+    public void setPreferences() {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        String city = preferences.getString("city", "Antwerp");
+        this.city = city;
+        tvCity.setText(city);
+        setBannerImage();
+        loadWeather(city);
+        delay = Integer.parseInt(preferences.getString("delay", "2"));
+        publish("delay", String.valueOf(delay));
     }
 
     private void connectMQTT() {
@@ -221,6 +240,7 @@ public class MainActivity extends AppCompatActivity {
                     Log.d("Hello", "Succesfully connected");
                     subscribe(topicHum);
                     subscribe(topicTemp);
+                    setPreferences();
                     client.setCallback(new MqttCallback() {
                         @Override
                         public void connectionLost(Throwable cause) {
@@ -298,11 +318,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void publish(String topic, String payload) {
+        Log.d("SEND","SENDING A MESSAGE");
         byte[] encoded = new byte[0];
         try {
             encoded = payload.getBytes("UTF-8");
             MqttMessage message = new MqttMessage(encoded);
             client.publish(topic, message);
+            Log.d("SEND", "Send to topic " + topic + " with message " + payload + " succesfully");
         } catch (UnsupportedEncodingException | MqttException e) {
             e.printStackTrace();
         }

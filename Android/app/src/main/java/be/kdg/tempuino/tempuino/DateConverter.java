@@ -19,7 +19,7 @@ public class DateConverter {
     public static Measurement.MeasurementType toStatus(int status) {
         if (status == Measurement.MeasurementType.TEMPERATURE.getCode()) {
             return Measurement.MeasurementType.TEMPERATURE;
-        } else if (status ==  Measurement.MeasurementType.HUMIDITY.getCode()) {
+        } else if (status == Measurement.MeasurementType.HUMIDITY.getCode()) {
             return Measurement.MeasurementType.HUMIDITY;
         } else {
             throw new IllegalArgumentException("Could not recognize status");

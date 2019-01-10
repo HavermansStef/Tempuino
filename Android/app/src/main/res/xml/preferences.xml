@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <EditTextPreference
+        android:key="city"
+        android:summary="Please provide your city"
+        android:title="Your City"></EditTextPreference>
+    <EditTextPreference
+        android:key="delay"
+        android:summary="Please provide your the delay in minutes"
+        android:title="Delay"></EditTextPreference>
+</PreferenceScreen>

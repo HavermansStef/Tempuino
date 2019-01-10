@@ -79,4 +79,6 @@
 
     <string name="pref_title_vibrate">Vibrate</string>
     <string name="unknown">Unknown</string>
+    <string name="title_activity_stats">StatsActivity</string>
+    <string name="save">Save</string>
 </resources>
