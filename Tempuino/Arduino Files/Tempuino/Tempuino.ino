@@ -11,17 +11,19 @@ DHT dht(DHTPIN, DHTTYPE); //// Initialize DHT sensor for normal 16mhz Arduino
 
 
 //Variables
-char ssid[] = "Frilinglei";
-char pass[] = "BwrthG8wPH";
+//char ssid[] = "Frilinglei";
+//char pass[] = "BwrthG8wPH";
 //char ssid[] = "Unifi-AP-92";    
 //char pass[] = "dV11qYKRPnQdea8h"; 
+char ssid[] = "Orange-Stef&Elise";
+char pass[] = "5T777Q9Q7M0";
 int status = WL_IDLE_STATUS; 
 const char *mqtt_server = "m15.cloudmqtt.com";
 const int mqtt_port = 16661;
 const char *mqtt_user = "eblgndhd";
 const char *mqtt_pass = "n_jbOQxQAaTt";
 const char *mqtt_client_name = "Tempuino";
-char* topicOut = "messages";
+char* topicOut = "delay";
 int chk;
 float hum;  //Stores humidity value
 float temp; //Stores temperature value
@@ -80,8 +82,6 @@ void sendData(long humidity, long temperature){
   itoa(numh,cshr,10);
    client.publish("dht",cstr);
    client.publish("bmp",cshr);
-
-    
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -93,6 +93,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
   Serial.println();
   Serial.println("-----------------------");
+  if (topic ="delay"){
+     payload[length] = '\0';
+  int pwmVal = atoi((char *)payload);
+    tempDelay = pwmVal * 60 * 1000;
+    Serial.print("The delay has been changed to ");
+    char delayOut[16];
+  itoa(tempDelay,delayOut,10);
+    Serial.println(delayOut);
+  }
 }
 
 void startMQTTClient(){
