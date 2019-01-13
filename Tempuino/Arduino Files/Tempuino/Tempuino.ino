@@ -2,21 +2,22 @@
 #include <WiFi101.h>
 #include <DHT.h>;
 #include <PubSubClient.h>
+#include <LiquidCrystal.h>
 
 //Constants
 
 #define DHTPIN 7     // what pin we're connected to
 #define DHTTYPE DHT22   // DHT 22  (AM2302)
 DHT dht(DHTPIN, DHTTYPE); //// Initialize DHT sensor for normal 16mhz Arduino
-
+const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 
 //Variables
 //char ssid[] = "Frilinglei";
 //char pass[] = "BwrthG8wPH";
-//char ssid[] = "Unifi-AP-92";    
-//char pass[] = "dV11qYKRPnQdea8h"; 
-char ssid[] = "Orange-Stef&Elise";
-char pass[] = "5T777Q9Q7M0";
+char ssid[] = "Unifi-AP-92";    
+char pass[] = "dV11qYKRPnQdea8h"; 
+//char ssid[] = "Orange-Stef&Elise";
+//char pass[] = "5T777Q9Q7M0";
 int status = WL_IDLE_STATUS; 
 const char *mqtt_server = "m15.cloudmqtt.com";
 const int mqtt_port = 16661;
@@ -29,11 +30,15 @@ float hum;  //Stores humidity value
 float temp; //Stores temperature value
 int tempDelay = 10000;
 
+
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 WiFiClient espClient;
 PubSubClient client(espClient);
 
 void setup()
 {
+  lcd.begin(16, 2);
+  lcd.print("Tempuino !");
   Serial.begin(9600);
   while (!Serial) {
   }
@@ -51,12 +56,16 @@ void establishConnection(){
 
   // attempt to connect to WiFi network:
   while ( status != WL_CONNECTED) {
+    lcd.setCursor(0, 1);
+    lcd.print("Attempting to connect to WPA SSID");
     Serial.print("Attempting to connect to WPA SSID: ");
     Serial.println(ssid);
     status = WiFi.begin(ssid, pass);
     delay(10000);
   }
   Serial.println("You're connected to the network");
+  lcd.setCursor(0, 1);
+    lcd.print("Connected");
 }
 
 void printTemperature(){
@@ -70,6 +79,8 @@ void printTemperature(){
     Serial.print(temp);
     Serial.println(" Celsius");
     sendData(hum,temp);
+    lcd.setCursor(0, 1);
+    lcd.print("T : " + String(temp) +" H: " + String(hum));
     delay(tempDelay); 
   }
 
@@ -92,6 +103,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.print((char)payload[i]);
   }
   Serial.println();
+  lcd.setCursor(0, 1);
+    lcd.print("Received a message");
   Serial.println("-----------------------");
   if (topic ="delay"){
      payload[length] = '\0';
@@ -102,6 +115,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
   itoa(tempDelay,delayOut,10);
     Serial.println(delayOut);
   }
+  lcd.setCursor(0, 1);
+    lcd.print("Delay changed");
 }
 
 void startMQTTClient(){
