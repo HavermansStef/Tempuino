@@ -307,6 +307,7 @@ public class MainActivity extends AppCompatActivity {
                     Log.d("Sub", "Succesfully subscribed");
                 }
 
+
                 @Override
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
 
